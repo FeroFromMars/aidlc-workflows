@@ -2,6 +2,19 @@
 
 **Purpose**: Determine workspace state and check for existing AI-DLC projects
 
+## Known Workspace Fast Path
+
+**IF** a previous feature's `aidlc-state.md` exists in the docs output location (e.g., a sibling feature folder in the same version prefix) **AND** the workspace root, tech stack, and project type have not changed since that feature was completed:
+
+1. Skip the full workspace scan (Steps 2–3 below).
+2. Set `brownfield = true`, carry forward the known workspace root, languages, and build system.
+3. Log in audit.md: `"Known workspace — skipping full scan. Reusing workspace profile from [previous feature id]."`
+4. Proceed directly to Step 4 (Create Initial State File) with the carried-forward values.
+
+This avoids redundant file-system scanning on mature projects where workspace characteristics are stable across features.
+
+---
+
 ## Step 1: Check for Existing AI-DLC Project
 
 Check if `aidlc-docs/aidlc-state.md` exists:

@@ -51,7 +51,6 @@ All subsequent rule detail file references (e.g., `common/process-overview.md`, 
 
 ## MANDATORY: Content Validation
 **CRITICAL**: Before creating ANY file, you MUST validate content according to `common/content-validation.md` rules:
-- Validate Mermaid diagram syntax
 - Validate ASCII art diagrams (see `common/ascii-diagram-standards.md`)
 - Escape special characters properly
 - Provide text alternatives for complex visual content
@@ -230,20 +229,15 @@ All subsequent rule detail file references (e.g., `common/process-overview.md`, 
 
 1. **MANDATORY**: Log any user input during this phase in audit.md
 2. Load all steps from `inception/workflow-planning.md`
-3. **MANDATORY**: Load content validation rules from `common/content-validation.md`
-4. Load all prior context:
-   - Reverse engineering artifacts (if brownfield)
-   - Intent analysis
-   - Requirements (if executed)
-   - User stories (if executed)
-5. Execute workflow planning:
-   - Determine which phases to execute
-   - Determine depth level for each phase
-   - Create multi-package change sequence (if brownfield)
-   - Generate workflow visualization (VALIDATE Mermaid syntax before writing)
-6. **MANDATORY**: Validate all content before file creation per content-validation.md rules
-7. **Wait for Explicit Approval**: Present recommendations using language from workflow-planning.md Step 9, emphasizing user control to override recommendations - DO NOT PROCEED until user confirms
-8. **MANDATORY**: Log user's response in audit.md with complete raw input
+3. **Evaluate the Standard Brownfield Fast Path** (see workflow-planning.md): if all conditions are met, use the condensed inline plan and skip the full workflow planning process
+4. If fast path does not apply, execute the full workflow planning process:
+   - Load all prior context (reverse engineering artifacts, requirements, user stories)
+   - Determine which phases to execute and depth level for each
+   - Create multi-package change sequence (if brownfield with multiple modules)
+   - Generate a text-only stage decision checklist (no Mermaid diagrams)
+5. **MANDATORY**: Validate all content before file creation per content-validation.md rules
+6. **Wait for Explicit Approval**: Present recommendations using language from workflow-planning.md, emphasizing user control to override recommendations - DO NOT PROCEED until user confirms
+7. **MANDATORY**: Log user's response in audit.md with complete raw input
 
 ## Application Design (CONDITIONAL)
 
@@ -410,15 +404,11 @@ All subsequent rule detail file references (e.g., `common/process-overview.md`, 
 
 1. **MANDATORY**: Log any user input during this phase in audit.md
 2. Load all steps from `construction/build-and-test.md`
-3. Generate comprehensive build and test instructions:
-   - Build instructions for all units
-   - Unit test execution instructions
-   - Integration test instructions (test interactions between units)
-   - Performance test instructions (if applicable)
-   - Additional test instructions as needed (contract tests, security tests, e2e tests)
-4. Create instruction files in build-and-test/ subdirectory: build-instructions.md, unit-test-instructions.md, integration-test-instructions.md, performance-test-instructions.md, build-and-test-summary.md
-5. **Wait for Explicit Approval**: Ask: "**Build and test instructions complete. Ready to proceed to Operations stage?**" - DO NOT PROCEED until user confirms
-6. **MANDATORY**: Log user's response in audit.md with complete raw input
+3. Execute the project's build command directly and verify it passes
+4. Execute the project's test command directly (single-pass, non-watch mode) and verify tests pass
+5. If build or tests fail, diagnose and fix the issues before presenting completion
+6. **Wait for Explicit Approval**: Present build/test results to user - DO NOT PROCEED until user confirms
+7. **MANDATORY**: Log user's response in audit.md with complete raw input
 
 ---
 

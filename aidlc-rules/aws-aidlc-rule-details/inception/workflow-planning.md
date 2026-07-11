@@ -4,6 +4,56 @@
 
 **Always Execute**: This phase always runs after understanding requirements and scope
 
+## Standard Brownfield Fast Path
+
+**IF ALL of the following are true**, use the condensed fast-path instead of the full workflow planning process (Steps 1–11):
+
+1. Project is **brownfield** (existing codebase)
+2. Request is an **enhancement, bug fix, or tech debt** within existing architectural patterns
+3. No new infrastructure, deployment model changes, or multi-system impacts
+4. No multi-unit decomposition is needed (single cohesive unit of work)
+5. Requirements Analysis complexity was assessed as **Trivial, Simple, or Moderate**
+6. No new NFR concerns beyond what the existing codebase already handles
+
+**Fast-path execution:**
+
+1. Load requirements.md (already in context from prior stage).
+2. Determine phase skip/execute decisions inline (no separate document needed for the standard case: skip Application Design, Units Generation, Functional Design, NFR Requirements, NFR Design, Infrastructure Design; execute Code Generation + Build and Test).
+3. Present a condensed inline plan to the user:
+
+```markdown
+# 📋 Workflow Planning Complete (Fast Path)
+
+**Analysis**: Brownfield enhancement/fix within existing patterns. No architectural, infrastructure, or multi-unit complexity detected.
+
+**Execution Plan**:
+- 🔵 INCEPTION: Workspace Detection ✓ → Requirements Analysis ✓ → Workflow Planning ✓
+- 🟢 CONSTRUCTION: Code Generation → Build and Test
+- All other stages: SKIP (no new components/services, no NFR changes, no infra changes)
+
+**Risk**: [Low/Low-Medium]
+**Components affected**: [Brief list from requirements]
+
+> **🚀 WHAT'S NEXT?**
+>
+> **You may:**
+>
+> 🔧 **Request Changes** — Override skipped stages or adjust the plan
+> ✅ **Approve & Continue** — Proceed to **Code Generation**
+```
+
+4. Update `aidlc-docs/aidlc-state.md` with the condensed plan (same schema, stages marked SKIP/EXECUTE).
+5. Log the fast-path decision in audit.md.
+6. Wait for user approval. If user requests adding skipped stages, fall through to the full process below.
+
+**The user can always override** by saying "I want full planning" or "add [stage name]".
+
+---
+
+## Full Workflow Planning Process
+
+Use this when the fast-path conditions are NOT met (greenfield, architectural changes, multi-unit, high complexity, new infrastructure).
+
 ## Step 1: Load All Prior Context
 
 ### 1.1 Load Reverse Engineering Artifacts (if brownfield)
@@ -193,31 +243,32 @@ Identify for each affected module:
 - **Dependency constraints**: What it depends on, what depends on it
 - **Change scope**: Major (breaking), Minor (compatible), Patch (fixes)
 
-## Step 6: Generate Workflow Visualization
+## Step 6: Stage Summary (Text-Only)
 
-Create Mermaid flowchart showing:
-- All phases in sequence
-- EXECUTE or SKIP decision for each conditional phase
-- Proper styling for each phase state
+Document the execution decision for each stage in a simple text checklist. Do NOT generate Mermaid diagrams — they consume tokens without adding actionable information for the AI model.
 
-**Styling rules** (add after flowchart):
+Format for the execution plan document:
+
+```markdown
+## Stage Decisions
+
+### 🔵 INCEPTION PHASE
+- [x] Workspace Detection — COMPLETED
+- [x/skip] Reverse Engineering — [COMPLETED/SKIPPED: reason]
+- [x] Requirements Analysis — COMPLETED
+- [x/skip] User Stories — [COMPLETED/SKIPPED: reason]
+- [x] Workflow Planning — IN PROGRESS
+- [EXECUTE/SKIP] Application Design — [Rationale]
+- [EXECUTE/SKIP] Units Generation — [Rationale]
+
+### 🟢 CONSTRUCTION PHASE
+- [EXECUTE/SKIP] Functional Design — [Rationale]
+- [EXECUTE/SKIP] NFR Requirements — [Rationale]
+- [EXECUTE/SKIP] NFR Design — [Rationale]
+- [EXECUTE/SKIP] Infrastructure Design — [Rationale]
+- EXECUTE Code Generation (ALWAYS)
+- EXECUTE Build and Test (ALWAYS)
 ```
-style WD fill:#4CAF50,stroke:#1B5E20,stroke-width:3px,color:#fff
-style CG fill:#4CAF50,stroke:#1B5E20,stroke-width:3px,color:#fff
-style BT fill:#4CAF50,stroke:#1B5E20,stroke-width:3px,color:#fff
-style US fill:#BDBDBD,stroke:#424242,stroke-width:2px,stroke-dasharray: 5 5,color:#000
-style Start fill:#CE93D8,stroke:#6A1B9A,stroke-width:3px,color:#000
-style End fill:#CE93D8,stroke:#6A1B9A,stroke-width:3px,color:#000
-
-linkStyle default stroke:#333,stroke-width:2px
-```
-
-**Style Guidelines**:
-- Completed/Always execute: `fill:#4CAF50,stroke:#1B5E20,stroke-width:3px,color:#fff` (Material Green with white text)
-- Conditional EXECUTE: `fill:#FFA726,stroke:#E65100,stroke-width:3px,stroke-dasharray: 5 5,color:#000` (Material Orange with black text)
-- Conditional SKIP: `fill:#BDBDBD,stroke:#424242,stroke-width:2px,stroke-dasharray: 5 5,color:#000` (Material Gray with black text)
-- Start/End: `fill:#CE93D8,stroke:#6A1B9A,stroke-width:3px,color:#000` (Material Purple with black text)
-- Phase containers: Use lighter Material colors (INCEPTION: #BBDEFB, CONSTRUCTION: #C8E6C9, OPERATIONS: #FFF59D)
 
 ## Step 7: Create Execution Plan Document
 
@@ -247,48 +298,6 @@ Create `aidlc-docs/inception/plans/execution-plan.md`:
 - **Risk Level**: [Low/Medium/High/Critical]
 - **Rollback Complexity**: [Easy/Moderate/Difficult]
 - **Testing Complexity**: [Simple/Moderate/Complex]
-
-## Workflow Visualization
-
-```mermaid
-flowchart TD
-    Start(["User Request"])
-    
-    subgraph INCEPTION["🔵 INCEPTION PHASE"]
-        WD["Workspace Detection<br/><b>STATUS</b>"]
-        RE["Reverse Engineering<br/><b>STATUS</b>"]
-        RA["Requirements Analysis<br/><b>STATUS</b>"]
-        US["User Stories<br/><b>STATUS</b>"]
-        WP["Workflow Planning<br/><b>STATUS</b>"]
-        AD["Application Design<br/><b>STATUS</b>"]
-        UG["Units Generation<br/>(Planning + Generation)<br/><b>STATUS</b>"]
-    end
-    
-    subgraph CONSTRUCTION["🟢 CONSTRUCTION PHASE"]
-        FD["Functional Design<br/><b>STATUS</b>"]
-        NFRA["NFR Requirements<br/><b>STATUS</b>"]
-        NFRD["NFR Design<br/><b>STATUS</b>"]
-        ID["Infrastructure Design<br/><b>STATUS</b>"]
-        CG["Code Generation<br/>(Planning + Generation)<br/><b>EXECUTE</b>"]
-        BT["Build and Test<br/><b>EXECUTE</b>"]
-    end
-    
-    subgraph OPERATIONS["🟡 OPERATIONS PHASE"]
-        OPS["Operations<br/><b>PLACEHOLDER</b>"]
-    end
-    
-    Start --> WD
-    WD --> RA
-    RA --> WP
-    WP --> CG
-    CG --> BT
-    BT --> End(["Complete"])
-    
-    %% Replace STATUS with COMPLETED, SKIP, EXECUTE as appropriate
-    %% Apply styling based on status
-```
-
-**Note**: Replace STATUS placeholders with actual phase status (COMPLETED/SKIP/EXECUTE) and apply appropriate styling
 
 ## Phases to Execute
 

@@ -18,50 +18,22 @@
 
 **See `common/ascii-diagram-standards.md` for patterns and validation checklist.**
 
-## Mermaid Diagram Validation
+## Mermaid Diagrams
 
-### Required Validation Steps
-1. **Syntax Check**: Validate Mermaid syntax before file creation
-2. **Character Escaping**: Ensure special characters are properly escaped
-3. **Fallback Content**: Provide text alternative if Mermaid fails validation
+**Do NOT generate Mermaid diagrams** in AI-DLC workflow artifacts. They consume significant tokens in both generation and validation without adding actionable value for the AI model. Use text-based stage checklists instead (see `inception/workflow-planning.md` Step 6).
 
-### Mermaid Validation Rules
-```markdown
-## BEFORE creating any file with Mermaid diagrams:
-
-1. Check for invalid characters in node IDs (use alphanumeric + underscore only)
-2. Escape special characters in labels: " → \" and ' → \'
-3. Validate flowchart syntax: node connections must be valid
-4. Test diagram parsing with simple validation
-
-## FALLBACK: If Mermaid validation fails, use text-based workflow representation
-```
-
-### Implementation Pattern
-```markdown
-## Workflow Visualization
-
-### Mermaid Diagram (if syntax valid)
-```mermaid
-[validated diagram content]
-```
-
-### Text Alternative (always include)
-```
-Phase 1: INCEPTION
-- Stage 1: Workspace Detection (COMPLETED)
-- Stage 2: Requirements Analysis (COMPLETED)
-[continue with text representation]
-```
+If a user explicitly requests a Mermaid diagram outside the workflow, validate syntax before writing:
+- Use alphanumeric + underscore only for node IDs
+- Escape special characters in labels
+- Include a text fallback if generation is uncertain
 
 ## General Content Validation
 
 ### Pre-Creation Validation Checklist
-- [ ] Validate embedded code blocks (Mermaid, JSON, YAML)
+- [ ] Validate embedded code blocks (JSON, YAML)
 - [ ] Check special character escaping
 - [ ] Verify markdown syntax correctness
 - [ ] Test content parsing compatibility
-- [ ] Include fallback content for complex elements
 
 ### Error Prevention Rules
 1. **Always validate before using tools/commands to write files**: Never write unvalidated content
