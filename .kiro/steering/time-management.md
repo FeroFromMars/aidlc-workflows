@@ -66,11 +66,9 @@ All display components and the Event Store use `effectiveInstant` (which equals 
 
 The only code that cares about the distinction between `currentInstant` and `pinnedInstant` is the Time State Controller itself and the pin-related UI indicator.
 
-### R3: `useTimeSync` is deprecated — do not use in new code
+### R3: `useTimeSync` has been fully removed
 
-The legacy hook at `src/components/time-controls/useTimeSync.ts` is deprecated per ADR-0014. All new time-consuming components must use `useTimeState()` and `useTimeCommands()` from `@/lib/time`.
-
-Existing consumers are being migrated incrementally. Do not add new imports of `useTimeSync`.
+The legacy hook at `src/components/time-controls/useTimeSync.ts` has been deleted. All time management goes through `useTimeState()` and `useTimeCommands()` from `@/lib/time`.
 
 ### R4: FantasyCalendar and FantasyTimeline are owned by the provider
 
@@ -181,9 +179,10 @@ Consumers being migrated from `useTimeSync` to `GameTimeProvider`:
 
 | Consumer | Status | Notes |
 |---|---|---|
-| `DashboardDateDisplay` | Pending | Smallest — migrate first |
-| `TimePageContent` | Pending | Remove local query invalidation |
-| `CalendarView` | Pending | Largest — remove PATCH calls, undo/redo, event fetching |
-| `TimelineDetailContent` | Pending | Wire `TimelineViewProvider` |
+| `DashboardDateDisplay` | Complete | Deleted — replaced by `InGameClock` consuming context |
+| `TimePageContent` | Complete | Uses context hooks, no longer imports `useTimeSync` |
+| `CalendarView` → `InGameCalendar` | Complete | Renamed, uses Event Store + TimeCommands, no direct PATCH calls |
+| `TimelineDetailContent` | Partial | Import updated, TimelineViewProvider wiring pending |
+| `DayPanel` | Partial | Inlined fetch hooks (was using deleted calendar hooks), needs full Event Store wiring in follow-up |
 
 Update this table as migration progresses.
