@@ -1,159 +1,178 @@
 # World Runner – Tech Stack & Build System
 
-> **Scope**: This file describes the `world-runner/` application repository.
-> All paths and commands below are relative to `world-runner/`.
-> For `world-runner-cc`, see `tech-cc.md`.
+> **Scope**: the `world-runner/` application repository. All paths and commands below are relative to `world-runner/`.
 
 ## Core Stack
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 14 (App Router, React Server Components) |
-| UI | React 18, TypeScript |
-| API | Next.js Route Handlers (REST-style); tRPC wired but not yet the primary transport |
-| Validation | Zod (server-side schemas, `safeParse` at route boundaries) |
-| ORM | Prisma 5 |
+| Framework | Next.js 14 (App Router, React Server Components) — ADR-0001 |
+| UI | React 18, TypeScript 5 |
+| API | Next.js Route Handlers (REST-style). No tRPC. |
+| Server state (client) | TanStack Query v5 — ADR-0013 |
+| Validation | Zod 3 (server-side schemas, `safeParse` at route boundaries) — ADR-0004 |
+| ORM | Prisma 5 — ADR-0002 |
 | Database | PostgreSQL 16 (Docker for local dev) |
-| Auth | Custom cookie-based session (`wr_userId` cookie, bcryptjs for password hashing) |
-| Testing | Vitest |
-| Language | TypeScript 5 end-to-end |
+| Auth | Cookie-based identity (`wr_userId`), bcryptjs — ADR-0029 (production blockers pending) |
+| Editor | TipTap 3 / ProseMirror (block model, ADR-0018) |
+| Icons | `@tabler/icons-react` |
+| Images | `sharp` (server-side validation/re-encode) |
+| Testing | Vitest 1, Testing Library, jsdom, fast-check (property-based) |
 
 ## Key Libraries
 
-- `bcryptjs` – password hashing
-- `zod` – input validation and schema inference
-- `@prisma/client` – generated DB client (import via `@/lib/prisma`)
-- `@tanstack/react-query` – server state management (queries, mutations, cache invalidation)
-- `@testing-library/react` – component and hook testing (render, renderHook, fireEvent)
-- `@testing-library/jest-dom` – extended DOM matchers for Vitest (toBeInTheDocument, etc.)
+Runtime:
+- `@prisma/client`: generated DB client. Import only via `@/lib/prisma`.
+- `@tanstack/react-query` (+ `-devtools`): queries, mutations, and cache invalidation.
+- `zod`: input validation and schema inference.
+- `bcryptjs`: password hashing.
+- `@tiptap/react`, `@tiptap/pm`, `@tiptap/starter-kit`, and the `@tiptap/extension-{color,highlight,placeholder,task-item,task-list,text-style,underline}` extensions: the note editor.
+- `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`: drag and drop.
+- `@tabler/icons-react`: the only icon set.
+- `sharp`: image processing in `src/server/images/`.
+
+Dev:
+- `vitest`, `jsdom`, `@testing-library/react`, `@testing-library/jest-dom`: tests.
+- `fast-check`: property-based testing, the sanctioned PBT framework.
+- `prisma` (CLI), `typescript`, `@types/*`.
 
 ## Dependency Policy
 
-**New libraries or tools require explicit approval from the human owner before being added.**
+**New libraries or tools need explicit approval from the human owner before they are added.**
 
-Before proposing a new dependency, ask:
-1. Does a built-in or already-installed solution exist?
-2. Is the package actively maintained with a clear license?
-3. Does it meaningfully reduce code vs. a small custom implementation?
+Before proposing a dependency, check:
+1. Is there a built-in or already-installed solution?
+2. Is the package actively maintained, with a clear license?
+3. Does it meaningfully reduce code compared with a small custom implementation?
 
-If yes to all three, propose it with justification. Do not add it unilaterally.
+If all three are yes, propose it with a justification. Do not add it unilaterally. Some candidates have already been evaluated and rejected (e.g. Floating UI, client compression libraries, 3D dice), so do not re-propose them without new reasons.
 
 ## Common Commands
 
 ```bash
 # Development
-npm run dev               # start Next.js dev server (run manually in terminal)
+npm run dev                # start Next.js dev server (run manually in a terminal)
 
 # Build & Production
-npm run build             # production build
-npm run start             # start production server
+npm run build              # production build (don't run while the dev server is running; clear a stale .next if needed)
+npm run start              # start production server
+
+# Type check
+npx tsc --noEmit           # full type check
 
 # Database
-docker compose up -d db   # start local PostgreSQL container
-npm run prisma:migrate     # create and apply migrations (dev)
+docker compose up -d db    # start local PostgreSQL container
+npm run prisma:migrate     # create and apply migrations (dev) — owner go-ahead required
 npm run prisma:generate    # regenerate Prisma Client after schema changes
-npm run prisma:studio      # open Prisma Studio (DB browser)
-npm run prisma:seed        # seed the database
+npm run prisma:studio      # open Prisma Studio
+npm run prisma:seed        # idempotent dev seed
 
 # Testing
-npx vitest --run           # run tests once (non-watch, use in CI or verification)
-npm run test               # run Vitest in watch mode (for active development)
+npx vitest --run           # run all tests once (use for verification)
+npx vitest --run <path>    # run a subset
+npm run test               # Vitest watch mode (active development)
 ```
+
+There are no lint or typecheck npm scripts. Use `npx tsc --noEmit`.
 
 ## Environment
 
-Copy `.env.example` → `.env`. Required variables:
+Copy `.env.example` → `.env`. Required keys:
+- `DATABASE_URL`: Prisma connection string (postgres).
+- `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT`: Docker Compose defaults.
 
-- `DATABASE_URL` – Prisma connection string (postgres)
-- `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT` – Docker Compose defaults
+Never commit `.env` or echo its values.
 
 ## TypeScript / Path Aliases
 
-`@/` maps to `src/`. Always use `@/` aliases. Never use relative `../` imports across domain boundaries.
+`@/` maps to `src/` (tsconfig and Vitest). Always use `@/` aliases. Never use relative `../` imports across domain boundaries. Strict mode is on.
 
 ## Testing Conventions
 
-- Framework: Vitest
-- Test files are **co-located** with the module they test (e.g., `createGame.test.ts` next to `createGame.ts`)
-- Do not test Zod schemas directly; service tests operate on typed inputs derived from schemas
-- Use `--run` flag for single-pass execution
-- Tests belong at the service layer; do not test Prisma queries directly
+- Test files are **co-located** with the module they test.
+- `*.test.tsx` runs in `jsdom` and `*.test.ts` runs in `node`. Rename a test to `.tsx` if it needs `document`.
+- `src/test/setup.ts` provides the jest-dom matchers. Vitest globals are off, so import `describe`/`it`/`expect` and call `cleanup()` in `afterEach` for render tests.
+- **Service tests** mock Prisma and run on typed inputs. Do not test Zod itself or Prisma queries directly.
+- **Pure libraries** (`src/lib/*`, pure server helpers) get example tests plus property tests.
+- **Source-analysis tests**, which read source and assert on patterns, are valid for structural rules, decommissions, and security routing (e.g. no `public` scope in user handlers).
+- **Contract tests** (`*.contract.test.ts`) guard cross-module invariants (e.g. archetype import parity, see `archetype-import-sync.md`).
+- There is no automated E2E harness and no test database. The owner runs manual integration checks, so document the manual path in the build-and-test summary.
+- Known noise (not introduced by new work): an intermittent stackless jsdom-teardown "Unhandled Error", and pre-existing `tsc` errors in `src/lib/time/eventStoreInternal.test.ts`.
+
+### Property-Based Testing (fast-check)
+
+- Target pure logic: invariants, round-trips (serialization, import → block data), idempotence, and oracles.
+- Name property tests `*.property.test.ts` and co-locate them. Keep example tests in separate `describe` blocks or files; examples pin the FD cases.
+- Reuse domain arbitraries (`src/lib/dnd55e/testGenerators.ts`, `src/lib/archetypes/statblock/testGenerators.ts`, import `fixtures/generators.ts`) instead of raw primitives.
+- Keep default shrinking and seed logging. A counterexample that exposes a bug becomes a permanent example test.
+- UI and wiring layers are example-tested only.
 
 ### Component and Hook Testing
 
-- Use `@testing-library/react` for component rendering and hook testing.
-- `.test.tsx` files automatically run in `jsdom` environment; `.test.ts` files run in `node`.
-- Setup file at `src/test/setup.ts` provides `@testing-library/jest-dom` matchers globally.
-- Use `renderHook` from `@testing-library/react` for custom hook tests.
-- Use `render` + screen queries for component render tests.
-- Source-analysis tests (reading source and asserting on patterns) remain valid for structural/convention tests.
+- Use `@testing-library/react`: `render` + screen queries for components, `renderHook` for hooks.
+- Dispatch command-registry keyboard events on `document`.
+- Guard `scrollIntoView`. jsdom lacks `caretPositionFromPoint`.
 
 ### React Query Testing
 
-When testing components or hooks that use TanStack Query:
-
-1. **Create a fresh `QueryClient` per test** — never share client instances across tests.
-2. **Wrap in `QueryClientProvider`** with retry disabled and infinite staleTime:
+1. Create a fresh `QueryClient` per test. Never share clients across tests.
+2. Wrap in `QueryClientProvider` with retry disabled and infinite staleTime:
    ```tsx
    const queryClient = new QueryClient({
      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
    });
-   // In wrapper:
    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
    ```
-3. **Mock `fetch`** globally in `beforeEach` to return controlled responses.
-4. **Use `waitFor`** for assertions on async query results:
-   ```tsx
-   await waitFor(() => {
-     expect(result.current.data).toBeDefined();
-   });
-   ```
-5. **Invalidation tests**: After calling `queryClient.invalidateQueries(...)`, use `waitFor` to assert refetch behavior.
-6. **Do not test React Query internals** — test your hook's or component's behaviour, not whether React Query called fetch.
+3. Mock `fetch` globally in `beforeEach` to return controlled responses.
+4. Use `waitFor` for assertions on async results.
+5. Invalidation tests: after `queryClient.invalidateQueries(...)`, assert refetch behavior with `waitFor`.
+6. Test your hook or component's behavior, not React Query internals.
 
 ## CSS / Styling
 
-- Global styles live in `src/app/globals.css`. Use semantic class names following existing BEM-like conventions (e.g., `.nav-bar`, `.content-shell`, `.builder-panel`).
-- **Do not use inline `style={{}}` props** for new code. Move styles to `globals.css` or a co-located CSS module.
-- Existing inline styles are tech debt to be migrated — do not add more.
-- Responsive rules: clamp panel width with `min(100%, 980px)`, enforce `box-sizing: border-box`, add `overflow-x: auto` on tables, clamp modal width with `min(Xpx, calc(100vw - 2rem))`.
+- Global styles: `src/app/theme.css` (tokens, imported first) and `src/app/globals.css` (semantic classes). Use prefixed, BEM-like semantic class names (e.g. `.nav-rail`, `.rules-list-grid`).
+- **CSS modules** are used for archetype displays (`src/lib/archetypes/**/*.module.css`) with dedicated per-archetype tokens (e.g. `--sb-*` for the stat block). Dark variants use `:global([data-theme='dark'])`. Other new UI uses `globals.css`.
+- **No inline `style={{}}`** for static styling. Exceptions are listed in `structure.md` § Styling.
+- Responsive rules:
+  - Clamp panel width with `min(100%, 980px)` and enforce `box-sizing: border-box`.
+  - Add `overflow-x: auto` on tables.
+  - Clamp modal width with `min(Xpx, calc(100vw - 2rem))`.
 
-### Theme Tokens Rule (Mandatory)
+### Theme Tokens Rule (Mandatory, ADR-0015)
 
-**All new CSS must use design tokens from `src/app/theme.css` for colors, backgrounds, and borders.** Hardcoded hex/rgb values are prohibited in new code.
+**All CSS must use design tokens from `src/app/theme.css` for colors, backgrounds, and borders.** Hardcoded hex/rgb values and named colors are prohibited in new or modified rules.
 
-The token system is defined in `src/app/theme.css` with light/dark variants on `[data-theme]`. Every color-related property in new or modified CSS rules must reference a `var(--token-name)` instead of a literal color value.
-
-**Allowed**: `var(--color-bg)`, `var(--color-text)`, `var(--color-border)`, `var(--color-primary)`, etc.
-**Prohibited in new code**: `#e5e7eb`, `#fff`, `white`, `rgba(0,0,0,0.04)`, or any hardcoded color literal.
-
-Token categories available (see `theme.css` for full list):
+Tokens have light and dark values under `:root, [data-theme='light']` and `[data-theme='dark']`. Categories:
 - Surfaces: `--color-bg`, `--color-surface`, `--color-surface-raised`, `--color-surface-hover`
 - Text: `--color-text`, `--color-text-secondary`, `--color-text-muted`, `--color-text-on-primary`
 - Borders: `--color-border`, `--color-border-strong`
-- Actions: `--color-primary`, `--color-primary-hover`, `--color-primary-surface`, `--color-accent`, `--color-accent-hover`, `--color-accent-surface`
+- Actions: `--color-primary`, `--color-primary-hover`, `--color-primary-surface`, `--color-accent`, `--color-accent-hover`, `--color-accent-surface`, `--color-arcane`, `--color-arcane-surface`
 - Feedback: `--color-danger`, `--color-danger-hover`, `--color-danger-surface`, `--color-danger-border`, `--color-success`, `--color-success-surface`, `--color-warning`, `--color-warning-surface`
 - Focus: `--color-focus`
+- Event categories: `--event-color-{game,global,other}`, `--event-text-{game,global,other}`
+- Note palette: `--note-color-{default,gray,brown,orange,yellow,green,blue,purple,pink,red}`, `--note-bg-{…same}`
+- Brand/raw primitives (`--brand-*`, `--mist-*`, `--slate-*`, `--wizard-*`, `--starlight-*`, `--moon-white`): only for defining semantic tokens inside `theme.css`. Do not use them directly in component CSS.
 
-If a needed semantic token does not exist, add it to `theme.css` (with both light and dark values) rather than using a raw color.
+If a needed semantic token does not exist, add it to `theme.css` with both light and dark values. The ADR-0015 migration phases are complete. About 25 domain-specific hex values remain as known debt; replace them when you touch those rules.
 
-Existing hardcoded colors in `globals.css` are tech debt to be migrated progressively. When modifying an existing rule, replace its hardcoded colors with tokens.
+Archetype color themes: Spell → arcane (purple), Equipment and Magic Item → accent (blue), Rule → success (green).
 
 ### Completeness Rule
 
-**Every `className` referenced in a component MUST have a corresponding CSS rule in `globals.css` (or a co-located CSS module).** No class name should be added to JSX without an accompanying style definition. Relying on browser defaults for layout, spacing, or typography is not acceptable — elements must be explicitly styled.
+**Every `className` referenced in a component must have a matching CSS rule** in `globals.css` or its CSS module. Do not rely on browser defaults for layout, spacing, or typography.
 
-Before considering a component complete, verify that:
-1. Every `className="..."` in the JSX has a matching selector in the stylesheet.
-2. Interactive elements (buttons, inputs, links acting as buttons) have explicit `:hover`, `:disabled`, and `:focus-visible` states defined.
-3. New form inputs match the existing field pattern: `padding: 0.5rem 0.75rem`, `border: 1px solid var(--color-border)`, `border-radius: 6px`, `font-size: 0.9rem`, `background: var(--color-surface-raised)`, `color: var(--color-text)`.
-4. New primary action buttons match the existing pattern: `padding: 0.6rem 1rem`, `border-radius: 8px`, `background: var(--color-primary)`, `color: var(--color-text-on-primary)`, `font-weight: 600`.
-5. New secondary/cancel buttons match: `border: 1px solid var(--color-border)`, `background: var(--color-surface-raised)`, `color: var(--color-text)`.
-6. Destructive buttons match: `background: var(--color-danger)`, `border-color: var(--color-danger)`, `color: var(--color-text-on-primary)`.
+Before calling a component complete, verify:
+1. Every `className="..."` has a matching selector.
+2. Interactive elements have explicit `:hover`, `:disabled`, and `:focus-visible` states.
+3. Form inputs follow the field pattern: `padding: 0.5rem 0.75rem`, `border: 1px solid var(--color-border)`, `border-radius: 6px`, `font-size: 0.9rem`, `background: var(--color-surface-raised)`, `color: var(--color-text)`.
+4. Primary buttons: `padding: 0.6rem 1rem`, `border-radius: 8px`, `background: var(--color-primary)`, `color: var(--color-text-on-primary)`, `font-weight: 600`.
+5. Secondary/cancel buttons: `border: 1px solid var(--color-border)`, `background: var(--color-surface-raised)`, `color: var(--color-text)`.
+6. Destructive buttons: `background: var(--color-danger)`, `border-color: var(--color-danger)`, `color: var(--color-text-on-primary)`.
+7. Rows inside `FlippableRow` use `gap` for spacing, not directional margins. Left-handed overrides are defined where needed (`ux.md`).
 
 ### Visual Consistency Patterns
 
-Reference these established patterns when styling new UI. Do not invent new spacing, color, or radius values. All color values must use theme tokens.
+Reuse these patterns. Do not invent new spacing, color, or radius values.
 
 | Element | Pattern |
 |---|---|
@@ -167,4 +186,6 @@ Reference these established patterns when styling new UI. Do not invent new spac
 | Empty state | `padding: 2rem 1rem; text-align: center; color: var(--color-text-muted); border: 1px dashed var(--color-border); border-radius: 8px; background: var(--color-surface)` |
 | Error banner | `background: var(--color-danger-surface); border: 1px solid var(--color-danger-border); color: var(--color-danger); border-radius: 6px` |
 | Muted text | `color: var(--color-text-muted); font-size: 0.9rem` |
-| Badge/pill | `padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600` |
+| Badge/pill | `padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600` (also used for the system decoration tag) |
+
+Shadow and backdrop `rgba` values in this table are the only sanctioned non-token colors.

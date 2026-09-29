@@ -1,95 +1,116 @@
 # World Runner – Command Registry Standards
 
-> **Scope**: This file applies to `world-runner/` only.
+> **Scope**: `world-runner/` only.
 
 ## Overview
 
-All keyboard shortcuts are managed through a centralized command registry at `src/lib/commands/`. Components interact with keyboard events exclusively through the `useCommand` hook — never through ad-hoc `onKeyDown` handlers or `document.addEventListener('keydown', ...)` for standard actions.
+All keyboard shortcuts go through a centralized command registry in `src/lib/commands/`. Components handle keyboard actions only through the `useCommand` hook. They never use ad-hoc `onKeyDown` handlers or `document.addEventListener('keydown', ...)` for standard actions.
+
+## Registered Commands
+
+`src/lib/commands/registry.ts` is the single source of truth. `mod` means Cmd on macOS and Ctrl elsewhere.
+
+| CommandId | Shortcut | Purpose | Active |
+|---|---|---|---|
+| `confirm` | Enter | Confirm / submit (suppressed while a `<textarea>` is focused) | yes |
+| `cancel` | Escape | Cancel / close | yes |
+| `save` | Mod+S | Save | yes |
+| `undo` | Mod+Z | Undo (time undo, TipTap history in the editor) | yes |
+| `redo` | Mod+Shift+Z | Redo | yes |
+| `showShortcutGuide` | Alt+H | Shortcut Guide (handled by `CommandProvider`) | yes |
+| `archivist` | Alt+A | Open the Archivist | yes |
+| `toggleDicePanel` | Alt+D | Toggle the Dice Roll Panel | yes |
+| `spotlight` | Mod+K | Open Spotlight | yes |
+| `spotlightPreview` | Shift+Enter | Preview the selected Spotlight result | yes |
+| `contextSkip` / `contextSkipBack` | L / J | Reserved | no |
 
 ## Rules
 
-### R1: All form submissions must use `useCommand('confirm', handler)`
+### R1: Form submissions use `useCommand('confirm', handler)`
 
-Every form, modal, or inline-edit component that has a "submit" or "confirm" action triggered by Enter must register it via:
+Every form, modal, or inline edit that submits on Enter registers:
 
 ```tsx
 useCommand('confirm', handleSubmit);
 ```
 
-Do NOT use `onKeyDown={(e) => { if (e.key === 'Enter') ... }}`.
+Do not use `onKeyDown={(event) => { if (event.key === 'Enter') ... }}`.
 
-Exception: Accessibility handlers on clickable divs (Enter/Space to simulate click) are not form submissions and may use standard `onKeyDown`.
+Exception: accessibility handlers on clickable non-button elements (Enter/Space to simulate a click) are not submissions and may use `onKeyDown`.
 
-### R2: All closeable modals/dialogs/panels must use `useCommand('cancel', handler)`
-
-Every component that closes on Escape must register:
+### R2: Closeable modals, dialogs, and panels use `useCommand('cancel', handler)`
 
 ```tsx
 useCommand('cancel', onClose);
 ```
 
-Do NOT use `document.addEventListener('keydown', ...)` or `onKeyDown` to listen for Escape.
+Do not listen for Escape with `document.addEventListener` or `onKeyDown`.
 
-### R3: All save shortcuts must use `useCommand('save', handler)`
+### R3: Save shortcuts use `useCommand('save', handler)`
 
-Any component implementing Ctrl/Cmd+S must register:
+Do not listen for `(event.ctrlKey || event.metaKey) && event.key === 's'` by hand.
 
-```tsx
-useCommand('save', saveFunction);
-```
+### R4: Conditional registration
 
-Do NOT manually listen for `(e.ctrlKey || e.metaKey) && e.key === 's'`.
-
-### R4: Conditional command registration
-
-For inline edits (e.g., year input, time input, rename fields) that are only active during an editing state, use conditional registration:
+Inline edits that are only active in an editing state register conditionally:
 
 ```tsx
 useCommand('confirm', isEditing ? handleSubmit : null);
 useCommand('cancel', isEditing ? handleCancel : null);
 ```
 
-Passing `null` as the handler skips registration. This ensures commands only fire when the component is in the appropriate state.
+Passing `null` skips registration.
 
-### R5: New keyboard shortcuts must go through the registry
+### R5: New shortcuts go through the registry
 
-When adding a new keyboard shortcut:
-1. Add a `CommandDefinition` entry in `src/lib/commands/registry.ts`
-2. Add the corresponding `CommandId` to the type union in `types.ts`
-3. Use `useCommand(newId, handler)` in the relevant component
-4. The shortcut will automatically appear in the Shortcut Guide (Alt+H)
+1. Add a `CommandDefinition` (`id`, `label`, `key`, `modifiers: { mod?, alt?, shift? }`, `active`) to `COMMANDS` in `registry.ts`.
+2. Add the `CommandId` to the union in `types.ts`.
+3. Call `useCommand(newId, handler)` in the component.
+4. The shortcut then appears in the Shortcut Guide (Alt+H) automatically.
 
-Do NOT implement standalone keyboard listeners outside the command system.
+Check the table above for conflicts before choosing a key. Alt shortcuts are matched on `event.code`, so they work with the macOS Option key.
 
-### R6: No remaining ad-hoc keyboard handlers for Enter/Escape/Ctrl+S
+### R6: No ad-hoc Enter / Escape / Mod+S handlers
 
-The following patterns are prohibited in new code:
+Prohibited in new code:
 
 ```tsx
-// ❌ Prohibited
-onKeyDown={(e) => { if (e.key === 'Enter') ... }}
-onKeyDown={(e) => { if (e.key === 'Escape') ... }}
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') ... })
-document.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 's') ... })
+// ❌
+onKeyDown={(event) => { if (event.key === 'Enter') ... }}
+onKeyDown={(event) => { if (event.key === 'Escape') ... }}
+document.addEventListener('keydown', (event) => { if (event.key === 'Escape') ... })
+document.addEventListener('keydown', (event) => { if ((event.ctrlKey || event.metaKey) && event.key === 's') ... })
 ```
 
-Use the command system instead:
-
 ```tsx
-// ✅ Correct
+// ✅
 useCommand('confirm', handleSubmit);
 useCommand('cancel', onClose);
 useCommand('save', save);
 ```
 
+## Documented Exceptions
+
+These are allowed. They are the only exceptions; any new one must be recorded here.
+
+- **Editor-native shortcuts**: TipTap formatting shortcuts (bold, headings, callouts such as Mod+Alt+6) and the block keymap (Enter / Backspace / Tab / Shift+Tab in `BlockKeymap`) are TipTap/ProseMirror keymaps, not registry commands. The NoteEditor registers `undo`/`redo` but not `confirm`/`cancel`.
+- **Vanilla NodeViews** cannot reach React context, so they use local key handling. Example: the image subtitle editor (Enter commits, Shift+Enter inserts a newline, Escape cancels).
+- **Input-local navigation**: arrow keys and Tab inside an input or list (e.g. `SpotlightInput` result navigation and ghost-text accept) may use `onKeyDown`.
+- **Field-local autocomplete**: Alt+Enter quick-format autocomplete in stat block description fields.
+- **Pointer modifiers**: Alt+click actions (forced keyword mark, text-scan dice roll) are handled in ProseMirror plugins or rollable-surface listeners. They are not keyboard shortcuts.
+- **Double-click** uses plain `onDoubleClick`. The registry is keyboard-only.
+
 ## Architecture
 
-- `src/lib/commands/registry.ts` — single source of truth for all command definitions
-- `src/lib/commands/types.ts` — TypeScript types
-- `src/lib/commands/useCommand.ts` — hook for binding handlers (LIFO stack semantics)
-- `src/lib/commands/CommandProvider.tsx` — global listener + context + shortcut guide
-- `src/components/ShortcutGuide.tsx` — shortcut cheatsheet overlay (Alt+H)
+- `src/lib/commands/registry.ts`: command definitions and `matchEvent`.
+- `src/lib/commands/types.ts`: `CommandId`, `CommandDefinition`, `KeyModifiers`, `CommandHandler`.
+- `src/lib/commands/useCommand.ts`: binds handlers with LIFO stack semantics.
+- `src/lib/commands/CommandProvider.tsx`: global capture listener, context, and the Shortcut Guide toggle.
+- `src/lib/commands/index.ts`: barrel.
+- `src/components/ShortcutGuide.tsx`: the shortcut cheatsheet overlay.
 
 ## LIFO Stack Semantics
 
-When multiple components register the same command (e.g., nested modals both registering `cancel`), the most recently mounted handler wins. This naturally supports nested UI — the inner modal's Escape takes priority over the outer page.
+When several components register the same command (e.g. nested modals both registering `cancel`), the most recently mounted handler wins. So an inner modal's Escape closes it before the outer page, and Spotlight Preview closes before Spotlight.
+
+In tests, dispatch keyboard events on `document`.

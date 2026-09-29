@@ -2,110 +2,69 @@
 
 ## Repositories
 
-The World Runner platform is developed across four repositories, all present in the same workspace root.
+The workspace root holds three repositories plus the workspace-level `.kiro/` folder.
 
 | Repository | Purpose | Path |
 |---|---|---|
-| `world-runner` | Application code (Next.js, product UI, API, services) | `world-runner/` |
-| `world-runner-cc` | Feature governance control center (policy, plans, snapshots) | `world-runner-cc/` |
-| `world-runner-docs` | Architecture Decision Records and historical documentation | `world-runner-docs/` |
-| `WorldRunnerControlFigma` | Figma Make export — readonly UI reference for `world-runner-cc` | `WorldRunnerControlFigma/` |
+| `world-runner` | Application code: Next.js product UI, API, services, Prisma schema | `world-runner/` |
+| `world-runner-docs` | ADRs, feature designs, product docs, AI-DLC records, historical docs | `world-runner-docs/` |
+| `aidlc-workflows` | Fork of AWS AI-DLC workflow rules (branch `world-runner-main`) plus the versioned copy of this steering | `aidlc-workflows/` |
 
 ## Workspace Layout
 
 ```
-KiroWorkspace/
+<workspace root>/
 ├── .kiro/
-│   └── steering/       Workspace-level steering (applies to all repos)
-├── world-runner/       Application repo
-├── world-runner-cc/    Control center repo
-├── world-runner-docs/  Documentation repo
-└── WorldRunnerControlFigma/  Figma UI source (readonly)
+│   ├── steering/                  Live workspace steering (applies to all repos)
+│   │   └── aws-aidlc-rules/       AI-DLC core workflow (synced from aidlc-workflows)
+│   └── aws-aidlc-rule-details/    AI-DLC rule details (synced from aidlc-workflows)
+├── world-runner/                  Application repo
+├── world-runner-docs/             Documentation repo
+└── aidlc-workflows/               AI-DLC rules + versioned steering
 ```
 
 ## Repository Boundaries
 
 ### `world-runner` (application)
-
-- All product-facing code: pages, components, API routes, services, Prisma schema.
-- Owns runtime enforcement of feature policy.
-- Owns user preferences, session state, offline cache.
-- Tech stack documented in `tech.md`.
-
-### `world-runner-cc` (control center)
-
-- Administrative control plane for feature governance.
-- Owns feature definitions, global enable/disable state, subscription plans, entitlements, policy snapshots.
-- Does NOT own user-facing product UI or runtime rendering.
-- UI source comes from `WorldRunnerControlFigma` — see Figma Integration section below.
-- Tech stack documented in `tech-cc.md`.
-
-### `WorldRunnerControlFigma` (Figma UI source — readonly)
-
-- Contains Figma Make export code: Vite + React + Tailwind CSS v4 + shadcn/ui.
-- **Strictly readonly** — never edit files in this repo directly. Changes flow from Figma Make → this repo.
-- Serves as the canonical UI reference for `world-runner-cc`.
-- Components, styles, and theme tokens are copied into `world-runner-cc` as needed.
-- No steering rules, no specs, no tests. This is a design artifact, not a product codebase.
+- All product code: pages, components, API routes, services, Prisma schema, seed and scripts.
+- Tech stack in `tech.md`; structure and standards in `structure.md`.
+- Its README and `src/app/README.md` are stale (they still mention characters, item collections, currency, tRPC). Do not use them as a reference; steering and `world-runner-docs` win.
+- `world-runner/aidlc-docs/` and `world-runner/aidlc/` are legacy AI-DLC output from before the docs moved. Never write new AI-DLC docs there (`aidlc-docs.md`).
 
 ### `world-runner-docs` (documentation)
+- `adr/`: Architecture Decision Records (index in `adr/README.md`).
+- `designs/`: Feature Designs `FD-NNNN-*.md` (template in `designs/TEMPLATE.md`).
+- `main/`: product docs: `manifesto.md`, `mvp-plan.md`, `MVP-milestone-sequences.md`, `navigation-architecture.md`, `system-map.md`, `prep-workflow.md`, `production-readiness-plan.md`.
+- `ai-dlc-docs/`: AI-DLC records per version and iteration (`aidlc-docs.md`).
+- `control-center/`: architecture notes for the paused control-center project (reference only).
+- `deprecated/`: read-only historical reference. Never the primary source for active work.
+- No application code. No steering files.
 
-- Architecture Decision Records in `adr/`.
-- Historical/deprecated documentation in `deprecated/`.
-- Control center architecture docs in `control-center/`.
-- Scratch notes in `.scratches/`.
-- No application code. No steering files. No specs.
-
-## Shared Contract
-
-The contract between `world-runner-cc` and `world-runner` is a **versioned policy snapshot** — not shared database tables, not live API calls at render time.
-
-- `world-runner-cc` publishes snapshots.
-- `world-runner` syncs, caches, and evaluates locally.
-- Offline mode uses the last valid cached snapshot.
+### `aidlc-workflows` (process rules)
+- `aidlc-rules/aws-aidlc-rules/` and `aidlc-rules/aws-aidlc-rule-details/`: source of the AI-DLC workflow, customized for World Runner.
+- `.kiro/steering/`: versioned copy of the workspace steering.
+- `sync-to-kiro.sh`: copies the AI-DLC rules into the workspace `.kiro/` (rule details + `steering/aws-aidlc-rules/`).
+- `pull-from-kiro.sh`: copies the live top-level steering files (`.kiro/steering/*.md`) back into this repo so changes can be committed.
+- **Commit steering changes.** After editing live steering, run `./pull-from-kiro.sh` and commit in `aidlc-workflows`. Uncommitted steering has been lost before.
 
 ## Cross-Repo Documentation
 
-| Document Type          | Location                                         |
-| ------------------------| --------------------------------------------------|
-| ADRs                   | `world-runner-docs/adr/`                         |
-| AWS AIDLC RULE DETAILS | `.kiro/aws-aidlc-rule-details/` (workspace root) |
-| Steering               | `.kiro/steering/` (workspace root)               |
-| CC architecture docs   | `world-runner-docs/control-center/`              |
-| Deprecated docs        | `world-runner-docs/deprecated/`                  |
+| Document Type | Location |
+|---|---|
+| Glossary (official terms) | `.kiro/steering/glossary.md` |
+| Steering | `.kiro/steering/` (workspace root) |
+| AI-DLC rule details | `.kiro/aws-aidlc-rule-details/` (workspace root) |
+| ADRs | `world-runner-docs/adr/` |
+| Feature Designs | `world-runner-docs/designs/` |
+| Product docs | `world-runner-docs/main/` |
+| AI-DLC records | `world-runner-docs/ai-dlc-docs/` |
+| Deprecated docs | `world-runner-docs/deprecated/` |
 
 ## Path References in Steering
 
-- Paths in `structure.md` and `tech.md` are relative to `world-runner/`.
-- Paths in `tech-cc.md` are relative to `world-runner-cc/`.
-- Paths in `WorldRunnerControlFigma/` are readonly references — never targets for edits.
-- ADR references point to `world-runner-docs/adr/`.
+- Paths in `structure.md`, `tech.md`, `ux.md`, `commands.md`, `time-management.md`, `ui-composition.md`, `naming.md`, and `archetype-import-sync.md` are relative to `world-runner/`.
+- ADR, FD, and product-doc references point into `world-runner-docs/`.
 
-## Figma Integration
+## Precedence
 
-The Figma power is used **exclusively for `world-runner-cc`**. The `world-runner` application retains its own styling approach (semantic CSS classes in `globals.css`).
-
-### Workflow
-
-```
-Figma Make file ──export──▶ WorldRunnerControlFigma/ (readonly)
-                                      │
-                                      │ copy/adapt
-                                      ▼
-                              world-runner-cc/ (production)
-```
-
-1. UI designs are authored in Figma (Make or Design files).
-2. Figma exports land in `WorldRunnerControlFigma/` — this repo is never manually edited.
-3. When the Figma repo updates, relevant changes are copied into `world-runner-cc/`, adapting them to Next.js conventions (App Router pages, server/client split).
-4. The Figma power's `get_design_context` and `get_screenshot` tools can also be used directly for incremental UI work in `world-runner-cc`.
-
-### Figma-Sourced File Exemptions
-
-Files copied verbatim or near-verbatim from `WorldRunnerControlFigma/` into `world-runner-cc/` are exempt from the following steering rules:
-
-- **200-line component limit** — Figma-sourced components may exceed this to stay in sync with upstream. They are refactored only when the CC codebase wraps or extends them.
-- **No inline `style={{}}` props** — Figma output uses inline styles for dynamic values and font stacks. These are acceptable in Figma-sourced files.
-- **Semantic CSS class names** — Tailwind utility classes are the standard in `world-runner-cc` (matching Figma output).
-
-These exemptions apply only to files in a designated Figma source directory within `world-runner-cc` (e.g., `src/components/figma/` or similar). Production components that wrap or extend Figma sources follow normal steering rules.
+When sources conflict: **code and accepted docs** (ADRs, FDs, AI-DLC records) win over steering. Fix the steering when you find drift, and tell the owner.
