@@ -76,8 +76,11 @@ Terms are alphabetical within each section. Add new terms to the section that ow
 | **Archivist** | The note browser, a floating modal (Alt+A). Hierarchy: Setting → Games → game. In-game it opens at the current game and shows only that game plus the Setting. | `src/components/archivist/` | I |
 | **Block Model** | Note structure where `noteBlock` wrappers express hierarchy explicitly. Three-layer API: **BlockQueries** (reads), **BlockCommands** (TipTap commands), **BlockController** (React facade). | ADR-0018, `src/components/notes/blocks/` | I |
 | **Breadcrumbs** | Note location path (e.g. Setting › Games › Game › Note). Clicking a segment opens the Archivist at that level. | `NoteEditor` | I |
+| **Content Registry** | The single list of content node and mark types (TipTap extension, persist allowlist entry, read-only renderer, profile gate). Every editor, validator, and read-only renderer derives from it. | `src/lib/richText/contentRegistry.ts`, FD-0030 | D |
 | **contentVersion** | Integer version of a note document. New notes are v2; v1 upgrades lazily on load. | `Note.contentVersion`, `src/lib/notes/migration/` | I |
 | **Early Wrap** | User preference limiting the text column to 720px. | `UserPreferences.earlyWrap` | I |
+| **Editor Core** | The shared editor engine (extension builder, block controller, formatting toolbar groups, keyword wiring, dice surface). The NoteEditor and WRText both host it. | `src/components/editor/`, FD-0030 | D |
+| **Editor Profile** | A named capability set applied to the Editor Core: `note`, `archetypeField` (no headings or images), `archetypeLore` (headings, no images). Switches features without forking code. | `src/lib/richText/editorProfiles.ts`, FD-0030 | D |
 | **Expand View** | Floating overlay showing an image at maximum size. | `ImageExpandView` | I |
 | **Image Block** | Atom node holding one stored image and an optional subtitle; occupies a full `noteBlock`. | `imageBlock`, `src/components/notes/extensions/ImageBlock.ts` | I |
 | **Image Display Mode** | Note-level choice between **Inline** and **ARI** for all its images. | `Note.imageDisplayMode` | I |
@@ -93,8 +96,10 @@ Terms are alphabetical within each section. Add new terms to the section that ow
 | **Persist Pipeline** | Save-time validation and projection: structural allowlist (`validateNoteContent`), one-archetype-per-note rule, snippet extraction, archetype index, keyword reconcile, system stamping. | `src/lib/notes/persistPipeline.ts`, `updateNote` | I |
 | **Projection** | Typed Prisma select constant that bounds what a read returns. Only the document loader returns `content`. | ADR-0022, `noteProjections.ts` | I |
 | **Read-only renderer** | Rich, non-editable rendering of a note (archetype display + formatted body). | `ReadOnlyNoteContent` | I |
+| **Rich Text Document** | ProseMirror JSON in the single shared v2 `noteBlock` schema. Note content, archetype Rich Text Fields, and lore all use it. Validated by `validateRichTextDocument(content, profile)`. | ADR-0031, FD-0030 | D |
 | **Storage adapter** | Swappable image storage interface (local filesystem today). | `src/server/images/storageAdapter.ts` | I |
 | **Subtitle** | (Note) the owning-context label under a note title. (Image) optional caption, also the alt-text source. | `NoteEditor`, `ImageBlockNodeView` | I |
+| **WRText** (World Runner Text) | The ad hoc rich text editor: a controlled field on the Editor Core that edits a Rich Text Document for the view embedding it, with keyword management in its toolbar. Never uses NoteProvider, the note persist pipeline, or the Aux-Panel. | `src/components/editor/WRText.tsx`, FD-0030 | D |
 
 ## 5. Keywords & Snippets
 
@@ -111,6 +116,7 @@ Terms are alphabetical within each section. Add new terms to the section that ow
 | **KeywordStore** | Client cache of visible keywords and types with O(1) phrase lookup and snippet preload. | `src/lib/notes/keywords/` | I |
 | **Mark Tool / Mark Mode** | Keyword Panel control that highlights candidates and toggles marks by click. Escape exits. | `markToolPlugin.ts` | I |
 | **Orphaned Mark** | A keyword mark whose text matches no keyword; rendered with a dashed underline and preserved on load. | FD-0001 | I |
+| **Public Keyword** | A keyword owned by the system user and scoped to a System. Admins author it; users read it (filtered by the effective system set) and cannot edit it. Narrower user keywords win on a phrase collision. | ADR-0031 §5, FD-0030 | D |
 | **Snippet** | Pre-extracted hover preview of a note, stored at save time. | `Note.snippet` | I |
 | **SnippetContent** | Safe structured snippet format: `paragraph` fragments (bold/italic/code only) or `archetype` fields with an optional bounded body. No HTML, no ProseMirror JSON. | `src/lib/snippets/types.ts` | I |
 | **Snippet Strategy** | How a note's snippet is extracted: `first-paragraph` (plain notes, the default when null) or the archetype's strategy. Never user-controlled. | `Note.snippetStrategy`, FD-0002 | I |
@@ -122,25 +128,34 @@ Terms are alphabetical within each section. Add new terms to the section that ow
 | Term | Definition | Code / Source | Status |
 |---|---|---|---|
 | **Actor / Location / Sequence (archetypes)** | Future archetypes for NPCs, places, and narrative segments. | FD-0026 | D |
+| **Archetype** | A standalone reference record (Monster, Spell, Equipment, Magic Item, Rule) that belongs to one System and is owned by a user or the system user (public). Not a Note and not scoped to a Setting or game; it appears wherever its System is in use. Replaces Note Archetype. | `Archetype`, `src/server/archetypes/`, ADR-0031, FD-0030 | D |
+| **Archetype Data / Archetype Data Schema** | The validated, versioned JSON payload of an Archetype and the Zod schema that defines it (replaces Archetype Block Schema). May contain Rich Text Fields. | `Archetype.data`, `src/lib/archetypes/*/schema.ts`, FD-0030 | D |
 | **Archetype-fication** | Server step turning validated import data into a note (archetype block first, description paragraphs below). | `src/server/archetypeImport/archetypeToDocument.ts` | I |
 | **Archetype Block** | The atom "header card" node in the first `noteBlock` of an archetype note; ends at its themed divider. Narrative text is regular note content below it. One per note. | `statBlock`, `spellBlock`, `equipmentBlock`, `magicItemBlock`, `ruleBlock` | I |
 | **Archetype Block Schema** | The shipped Zod schema for an archetype's block `data`. Single source of truth. | `src/lib/archetypes/*/schema.ts` | I |
 | **ArchetypeDefinition** | The contract every archetype registers (id, name, nodeType, keywordType, snippet/index extractors, fields, displays). | `src/lib/archetypes/types.ts` | I |
 | **Archetype Index** | One denormalized search row per archetype note, written on save and filtered by scope and system. | `ArchetypeIndex`, `src/server/archetypeIndex/` | I |
 | **Archetype Modal** | The shared, editor-independent form modal for creating/editing archetype data. Serves both the editor and Rules View "Create New". | `ArchetypeModal`, `ArchetypeAuthoringModal` | I |
+| **Archetype Origin** | Derived, never stored: `public` when the system user owns the Archetype, otherwise `mine`. Drives badges and `editable`. | FD-0030 | D |
+| **Archetype Read View** | The full read-only display of one Archetype: its Read View Strategy sections, then its lore. Used by the Rules View read panel, the Aux Read Panel, and Spotlight Preview. | `ArchetypeReadView`, FD-0030 | D |
 | **Archetype registry** | Runtime lookup of registered archetypes. Every entry point must call `registerAllArchetypes()`. | `src/lib/archetypes/registry.ts` | I |
+| **Archetype Type** | The kind of an Archetype (`monster`, `spell`, `equipment`, `magicItem`, `rule`): the registered `ArchetypeDefinition.id`. | `Archetype.archetypeType`, FD-0030 | D |
 | **Equipment / Magic Item / Rule / Spell** | Informational archetypes (no computation). Themes: Equipment and Magic Item blue, Spell purple (arcane), Rule green. | `src/lib/archetypes/{equipment,magicItem,rule,spell}/` | I |
 | **Homebrew** | Rule-block flag: true unless the content is public (admin-authored). | `isHomebrew` | I |
 | **Import Context** | The owning context of imported notes: active Setting, or the game when in-game (or Public in admin). | FD-0020 | I |
 | **Import Guidance** | Static per-archetype LLM prompt and schema text with Copy actions. | `src/lib/archetypes/guidance/` | I |
 | **Import Parser** | Pure client library validating an import file and splitting each entry into `{ blockData, noteContent }`. | `parseImportFile` | I |
 | **Import Schema** | Schema derived from the Archetype Block Schema via `.extend()`; may only add import-only fields (`description`). See `archetype-import-sync.md`. | `importSchemas.ts` | I |
+| **Lore** | An Archetype's optional extended narrative: a Rich Text Document in its own column, common to every type, edited with the `archetypeLore` profile and shown below the read view sections. Not a Note. | `Archetype.lore`, FD-0030 | D |
 | **Monster** | The archetype id of a creature/NPC stat block note. The block keeps the structural name `statBlock`; the archetype is `monster`. | `monsterArchetype.tsx` | I |
 | **Note Archetype** | A classification decorating a note with one archetype block that defines its appearance, snippet, index, and keyword type. | FD-0013 | I |
+| **Open (archetype)** | Viewing an Archetype in the Rules View of the current context: its category, selected, with its read view open. The archetype counterpart of opening a note in the editor. | `?archetype=<id>`, `openArchetype`, FD-0030 | D |
 | **Options provider** | Seam for system option sets (`getOptions(system, key)`), hard-coded today per ADR-0020. | `src/lib/dnd55e/optionsProvider.ts` | I |
 | **Playing Rules** | Rules View category for game-mechanic rules (`rule` archetype), distinct from reference archetypes. | `src/lib/rules/categories.ts` | I |
 | **Public archetype** | Archetype note owned by the system user (`ownerContext = PUBLIC`), read-only to non-admins, filtered by the effective system set. | FD-0028, FD-0029 | I |
 | **Quick Format** | Stat block text helpers: Hit Roll, Save Roll, Damage Roll (Alt+Enter autocomplete in descriptions). | `src/lib/quickFormats/` | I |
+| **Read View Strategy** | An Archetype Type's declared, ordered read sections (header, rich text fields, plain dividers, conditions), interpreted by the shared `ArchetypeReadView`. The full-display counterpart of the snippet strategy. | `ArchetypeDefinition.readView`, FD-0030 | D |
+| **Rich Text Field** | A property of Archetype Data whose value is a Rich Text Document or `null` (e.g. `description`, `traits[].description`). | `ArchetypeDefinition.richTextFields`, FD-0030 | D |
 | **Rule Family Tag** | Free-text grouping on a Rule block (e.g. "Weapon Mastery"). | `ruleBlock` | I |
 | **Rule Replacement** | A user rule overriding a public rule. Only the dormant `Note.replacesNoteId` seam exists. | FD-0025 | D |
 | **Rules View** | Main Content surface browsing the categories Playing Rules, Spells, Equipment, Magic Items, Monsters, with a read panel and "Create New". | `src/components/rules/`, `/content/rules/[category]` | I |
@@ -219,6 +234,24 @@ All designed only unless noted. Keep these names when the features are built.
 
 ---
 
+## Pending Changes (FD-0030, approved)
+
+These terms still describe shipped code. They retire as FD-0030 lands (WR1-F030-P3 and P4). Use the replacement in new design work now; move a row to Retired Terms when its phase is delivered.
+
+| Current term | Replacement |
+|---|---|
+| Note Archetype, archetype note | **Archetype** (standalone entity, ADR-0031). |
+| Archetype Block (as note content) | The type's header display inside the **Archetype Read View**. Archetype nodes leave note documents. |
+| Archetype Block Schema | **Archetype Data Schema**. |
+| Archetype Index (`ArchetypeIndex` table) | `Archetype.indexFields`. |
+| Archetype-fication, `buildArchetypeNoteDoc`, `archetypeToDocument` | `prepareArchetypeWrite` / `persistArchetype`; no note assembly. |
+| Content system (`Note.systemId`) | `Archetype.systemId`. |
+| Import-only `description` | The archetype `description` **Rich Text Field**. |
+| `includeBodyInSnippet` | `ArchetypeDefinition.snippetBodyField`. |
+| Setting- or game-scoped archetypes | Archetypes scoped only by System (ADR-0030, ADR-0031). |
+| Public archetype notes | Public **Archetypes** (`ownerUserId = SYSTEM_USER_ID`). |
+| "Add Archetype" note toolbar menu | Rules View "Create New". |
+
 ## Retired Terms
 
 Do not use these in new code, docs, or UI copy. Use the replacement.
@@ -256,4 +289,4 @@ Do not use these in new code, docs, or UI copy. Use the replacement.
 
 - `src/server/notes2/` → `src/server/notes/` rename is pending (WR1-it0-S01 follow-up). Until then, "Notes" is the domain name and `notes2` is only a path.
 - The Setting rail still shows a disabled "Books" item; it becomes "Modules" when FD-0022 lands.
-- ADR-0019, ADR-0021, and ADR-0030 are still marked *Proposed* in the ADR index although their decisions are implemented.
+- ADR-0019 and ADR-0021 are still marked *Proposed* in the ADR index although their decisions are implemented.
