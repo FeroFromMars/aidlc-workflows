@@ -34,8 +34,9 @@ src/
 │   │                          (AppShell, ContextBar, ContextSelector, NavigationRail,
 │   │                          MobileDrawer, FlippableRow, Skeleton, ShortcutGuide…)
 │   └── <feature>/             Feature component folders: archivist, aux-panel, calendar,
-│                              calendarConfig, dice, game, import, notes, rules,
-│                              snippets, spotlight, time-controls
+│                              calendarConfig, dice, editor (Editor Core + WRText), game,
+│                              import, keywords (keyword CRUD UI shared by the Aux-Panel
+│                              and editors), notes, rules, snippets, spotlight, time-controls
 │
 ├── lib/                       Client-safe and isomorphic libraries
 │   ├── prisma.ts              Singleton PrismaClient — the ONLY place it is instantiated
@@ -43,6 +44,7 @@ src/
 │   ├── commands/              Command registry (commands.md)
 │   ├── time/                  Centralized time management (time-management.md)
 │   ├── notes/                 NoteProvider, persist pipeline, migration, keywords, images
+│   ├── richText/              Content Registry, Editor Profiles, validateRichTextDocument (isomorphic)
 │   ├── archetypes/            Archetype registry + one folder per archetype, import, guidance
 │   ├── snippets/              SnippetContent types + extraction
 │   ├── dice/, diceRolling/    Pure dice math/roller; rollable-surface interaction layer
@@ -155,10 +157,10 @@ Use `@tabler/icons-react` only. No emojis or Unicode symbols as icons.
 - When a route-local component gains a second consumer, move it to `src/components/`.
 
 ### Editor extensions
-- TipTap extensions are registered in `buildEditorExtensions()` (`src/components/notes/extensions.ts`).
-- Every new node type must be added to the persist pipeline's structural allowlist (`VALID_CONTENT_TYPES`, and `ARCHETYPE_NODE_TYPES` for archetype blocks).
+- Content node and mark types are declared once in the Content Registry (`src/lib/richText/contentRegistry.ts`) with a profile gate and read-only render kind, and get their TipTap extension in `src/components/editor/extensionFactories.ts`. `buildEditorExtensions(profile, options)` (`src/components/editor/`), the persist allowlist (`validateRichTextDocument`), and the read-only render model all derive from it; never add a parallel allowlist.
+- Editor capabilities (headings, images, collapse, drag handle, size limits…) are switched by Editor Profiles (`src/lib/richText/editorProfiles.ts`), not by forking editors. New editors host the Editor Core (`useEditorCore`); `src/components/editor/**` never imports NoteProvider, the note save hook, or the Aux-Panel (source-analysis test).
 - Interactive editor behavior belongs in ProseMirror plugins or NodeViews, not React event handlers.
-- Vanilla NodeViews mount React with `createRoot` and talk to the editor through CustomEvents.
+- Vanilla NodeViews mount React with `createRoot` and talk to their host through CustomEvents on the per-editor bus (`dispatchEditorEvent` / `useEditorEvent` on `editor.view.dom`), never on `window`.
 
 ---
 

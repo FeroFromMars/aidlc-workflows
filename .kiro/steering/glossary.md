@@ -76,11 +76,11 @@ Terms are alphabetical within each section. Add new terms to the section that ow
 | **Archivist** | The note browser, a floating modal (Alt+A). Hierarchy: Setting → Games → game. In-game it opens at the current game and shows only that game plus the Setting. | `src/components/archivist/` | I |
 | **Block Model** | Note structure where `noteBlock` wrappers express hierarchy explicitly. Three-layer API: **BlockQueries** (reads), **BlockCommands** (TipTap commands), **BlockController** (React facade). | ADR-0018, `src/components/notes/blocks/` | I |
 | **Breadcrumbs** | Note location path (e.g. Setting › Games › Game › Note). Clicking a segment opens the Archivist at that level. | `NoteEditor` | I |
-| **Content Registry** | The single list of content node and mark types (TipTap extension, persist allowlist entry, read-only renderer, profile gate). Every editor, validator, and read-only renderer derives from it. | `src/lib/richText/contentRegistry.ts`, FD-0030 | D |
+| **Content Registry** | The single list of content node and mark types (TipTap extension, persist allowlist entry, read-only renderer, profile gate). Every editor, validator, and read-only renderer derives from it. TipTap extensions attach by name client-side. | `src/lib/richText/contentRegistry.ts`, `src/components/editor/extensionFactories.ts`, FD-0030 | I |
 | **contentVersion** | Integer version of a note document. New notes are v2; v1 upgrades lazily on load. | `Note.contentVersion`, `src/lib/notes/migration/` | I |
 | **Early Wrap** | User preference limiting the text column to 720px. | `UserPreferences.earlyWrap` | I |
-| **Editor Core** | The shared editor engine (extension builder, block controller, formatting toolbar groups, keyword wiring, dice surface). The NoteEditor and WRText both host it. | `src/components/editor/`, FD-0030 | D |
-| **Editor Profile** | A named capability set applied to the Editor Core: `note`, `archetypeField` (no headings or images), `archetypeLore` (headings, no images). Switches features without forking code. | `src/lib/richText/editorProfiles.ts`, FD-0030 | D |
+| **Editor Core** | The shared editor engine (extension builder, block controller, formatting toolbar groups, keyword wiring, dice surface). The NoteEditor and WRText both host it. | `src/components/editor/` (`useEditorCore`, `buildEditorExtensions`), FD-0030 | I |
+| **Editor Profile** | A named capability set applied to the Editor Core: `note`, `archetypeField` (no headings or images), `archetypeLore` (headings, no images). Switches features without forking code; also gates `validateRichTextDocument`. | `src/lib/richText/editorProfiles.ts`, FD-0030 | I |
 | **Expand View** | Floating overlay showing an image at maximum size. | `ImageExpandView` | I |
 | **Image Block** | Atom node holding one stored image and an optional subtitle; occupies a full `noteBlock`. | `imageBlock`, `src/components/notes/extensions/ImageBlock.ts` | I |
 | **Image Display Mode** | Note-level choice between **Inline** and **ARI** for all its images. | `Note.imageDisplayMode` | I |
@@ -99,7 +99,7 @@ Terms are alphabetical within each section. Add new terms to the section that ow
 | **Rich Text Document** | ProseMirror JSON in the single shared v2 `noteBlock` schema. Note content, archetype Rich Text Fields, and lore all use it. Validated by `validateRichTextDocument(content, profile)`. | ADR-0031, FD-0030 | D |
 | **Storage adapter** | Swappable image storage interface (local filesystem today). | `src/server/images/storageAdapter.ts` | I |
 | **Subtitle** | (Note) the owning-context label under a note title. (Image) optional caption, also the alt-text source. | `NoteEditor`, `ImageBlockNodeView` | I |
-| **WRText** (World Runner Text) | The ad hoc rich text editor: a controlled field on the Editor Core that edits a Rich Text Document for the view embedding it, with keyword management in its toolbar. Never uses NoteProvider, the note persist pipeline, or the Aux-Panel. | `src/components/editor/WRText.tsx`, FD-0030 | D |
+| **WRText** (World Runner Text) | The ad hoc rich text editor: a controlled field on the Editor Core that edits a Rich Text Document for the view embedding it, with keyword management in its toolbar. Never uses NoteProvider, the note persist pipeline, or the Aux-Panel. Built in WR1-F030-P1; product hosts arrive in FD-0030 P3 (dev harness `/dev/wrtext` until then). | `src/components/editor/WRText.tsx`, FD-0030 | P |
 
 ## 5. Keywords & Snippets
 

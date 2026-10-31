@@ -64,7 +64,7 @@ Draggable or resizable does not make something a panel. Classify by lifecycle: i
 
 **Dismissal**
 - Escape via `useCommand('cancel', onClose)` and confirm via `useCommand('confirm', ...)` (`commands.md`). A backdrop click or an explicit close button also dismisses.
-- **No stacking** as a default. One modal at a time. Documented exceptions: a blocking confirm dialog opened from its own modal (e.g. delete confirm), and Spotlight Preview above Spotlight. Both rely on the command registry's LIFO semantics, so the innermost modal closes first.
+- **No stacking** as a default. One modal at a time. Documented exceptions: a blocking confirm dialog opened from its own modal (e.g. delete confirm); Spotlight Preview above Spotlight; and the keyword CRUD modals (`CreateKeywordModal`, `EditKeywordModal`, `DeleteKeywordDialog`) above a Floating Modal that hosts a WRText field, one keyword modal at a time, returning focus to the originating field on close (FD-0030). All rely on the command registry's LIFO semantics, so the innermost modal closes first.
 
 **Lifecycle**: mounts on trigger (shortcut, button, contextual action), unmounts on dismiss.
 

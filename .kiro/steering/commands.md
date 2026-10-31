@@ -12,7 +12,7 @@ All keyboard shortcuts go through a centralized command registry in `src/lib/com
 
 | CommandId | Shortcut | Purpose | Active |
 |---|---|---|---|
-| `confirm` | Enter | Confirm / submit (suppressed while a `<textarea>` is focused) | yes |
+| `confirm` | Enter | Confirm / submit (suppressed in a `<textarea>` or inside a `contenteditable` editor) | yes |
 | `cancel` | Escape | Cancel / close | yes |
 | `save` | Mod+S | Save | yes |
 | `undo` | Mod+Z | Undo (time undo, TipTap history in the editor) | yes |
@@ -94,6 +94,7 @@ useCommand('save', save);
 These are allowed. They are the only exceptions; any new one must be recorded here.
 
 - **Editor-native shortcuts**: TipTap formatting shortcuts (bold, headings, callouts such as Mod+Alt+6) and the block keymap (Enter / Backspace / Tab / Shift+Tab in `BlockKeymap`) are TipTap/ProseMirror keymaps, not registry commands. The NoteEditor registers `undo`/`redo` but not `confirm`/`cancel`.
+- **Rich text fields (WRText, FD-0030 FR-C6/C7)**: Enter inside any `contenteditable` never fires `confirm` (`matchEvent`), so it inserts a paragraph instead of submitting the host modal. In the `archetypeField` / `archetypeLore` profiles, Tab and Shift+Tab outside a list are left to the browser (focus moves; no keyboard trap) and inside a list indent/outdent (`BlockKeymap` `tabMovesFocus`). A focused WRText registers `undo`/`redo` for its own history, taking LIFO precedence over page-level undo (e.g. time undo).
 - **Vanilla NodeViews** cannot reach React context, so they use local key handling. Example: the image subtitle editor (Enter commits, Shift+Enter inserts a newline, Escape cancels).
 - **Input-local navigation**: arrow keys and Tab inside an input or list (e.g. `SpotlightInput` result navigation and ghost-text accept) may use `onKeyDown`.
 - **Field-local autocomplete**: Alt+Enter quick-format autocomplete in stat block description fields.
